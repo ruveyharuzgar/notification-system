@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Notification Console</title>
+<style>
+:root{font:14px/1.5 system-ui,-apple-system,sans-serif;color:#233047;background:#f4f6f9;--border:#dbe2eb;--muted:#65748b;--blue:#2455a6}*{box-sizing:border-box}body{margin:0}header{background:#17263c;color:white;padding:19px max(24px,calc((100% - 1320px)/2));display:flex;align-items:center;justify-content:space-between;gap:15px}h1,h2,p{margin:0}h1{font-size:21px}h2{font-size:17px;margin-bottom:14px}header p{color:#b9c6d8;font-size:12px}main{max-width:1368px;margin:auto;padding:24px;display:grid;gap:20px}.metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}.metric,.panel{background:white;border:1px solid var(--border);border-radius:9px;padding:18px;min-width:0}.metric span{color:var(--muted);font-size:12px}.metric strong{display:block;font-size:27px;line-height:1.4;font-variant-numeric:tabular-nums}.metric small{display:block;color:var(--muted)}.columns{display:grid;grid-template-columns:minmax(285px,1fr) minmax(0,2.2fr);gap:20px;align-items:start}.stack{display:grid;gap:12px}.field{display:grid;gap:5px}label{font-weight:600;font-size:12px}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;border:1px solid #c9d3e0;border-radius:5px;padding:8px 10px;color:inherit;background:white}textarea{resize:vertical;min-height:90px}button{border:1px solid #c9d3e0;border-radius:5px;padding:8px 12px;background:white;color:var(--blue);cursor:pointer;font-weight:600}button.primary{background:var(--blue);color:white;border-color:var(--blue)}button:disabled{opacity:.45;cursor:not-allowed}button:hover:not(:disabled){filter:brightness(.94)}input:focus,select:focus,textarea:focus,button:focus-visible{outline:2px solid #70a1f4;outline-offset:2px}.row{display:flex;align-items:center;gap:8px;flex-wrap:wrap}.row>*{min-width:0}.row .grow{flex:1}.muted,small{color:var(--muted)}.notice{padding:10px 12px;background:#edf3fb;border-radius:5px;color:#294a79;font-size:12px}.notice.error{background:#fff0ef;color:#a12626}.notice.success{background:#e8f5ee;color:#176344}.filters{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:12px}.tablewrap{overflow:auto;margin-top:12px}table{border-collapse:collapse;width:100%;white-space:nowrap;font-size:13px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid #e7ebf1}th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;background:#f8fafc}td button{padding:4px 7px;font-size:12px}.status{display:inline-block;border-radius:4px;padding:3px 7px;background:#eef1f5;font-size:12px}.accepted,.ok{background:#e4f4e9;color:#176344}.failed,.unhealthy{background:#fce9e8;color:#a12626}.pending{background:#fff3d9;color:#845b0e}.processing{background:#e6effc;color:#28589d}.unknown{background:#f1e9fa;color:#69449c}.pagination{justify-content:space-between;margin-top:13px}.split{display:grid;grid-template-columns:1fr 1fr;gap:10px}details summary{cursor:pointer;font-weight:600}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#f5f7fa;padding:12px;border-radius:5px;font:12px/1.55 ui-monospace,monospace;margin:8px 0 0;max-height:360px;overflow:auto}dialog{border:1px solid var(--border);border-radius:10px;padding:20px;width:min(620px,calc(100% - 32px));color:inherit}dialog::backdrop{background:#17263c88}[hidden]{display:none!important}.spaced{margin-bottom:12px}#createResult{margin-top:12px;margin-bottom:0}.nowrap{white-space:nowrap}@media(max-width:1000px){.columns{grid-template-columns:1fr}.metrics{grid-template-columns:repeat(2,1fr)}}@media(max-width:600px){main{padding:12px;gap:12px}.panel,.metric{padding:12px}.filters{grid-template-columns:repeat(2,1fr)}header{padding:14px}.metric strong{font-size:23px}}
+</style>
+</head>
+<body>
+<header><div><h1>Notification Console</h1><p>Delivery operations / local environment</p></div><span id="health" class="status" role="status">Checking service…</span></header>
+<main>
+<section class="metrics" aria-label="Delivery metrics">
+<div class="metric"><span>Success rate · 24h</span><strong id="success">—</strong><small>Provider acceptance</small></div>
+<div class="metric"><span>Failure rate · 24h</span><strong id="failure">—</strong><small>Excludes cancelled / unknown</small></div>
+<div class="metric"><span>Average latency · 24h</span><strong id="latency">—</strong><small>Creation to acceptance</small></div>
+<div class="metric"><span>Queue depth</span><strong id="depth">—</strong><small id="queues">High / Normal / Low</small></div>
+</section>
+<div id="metricsError" class="notice error" role="status" hidden></div>
+<div class="columns">
+<aside class="stack">
+<section class="panel"><h2>Create notification</h2>
+<p class="notice spaced">Use synthetic recipients only. Requests go to the configured provider.</p>
+<form id="create" class="stack">
+<div class="split"><div class="field"><label for="channel">Channel</label><select id="channel"><option>sms</option><option>email</option><option>push</option></select></div><div class="field"><label for="priority">Priority</label><select id="priority"><option>normal</option><option>high</option><option>low</option></select></div></div>
+<div class="field"><label for="recipient">Recipient</label><input id="recipient" required maxlength="255" placeholder="+905551234567"></div>
+<div class="field"><label for="content">Content</label><textarea id="content" required maxlength="160" placeholder="Your message"></textarea><small id="count">0 / 160 characters</small></div>
+<div class="field"><label for="scheduled">Schedule (optional, local time)</label><input type="datetime-local" id="scheduled"></div>
+<div class="field"><label for="key">Idempotency key</label><div class="row"><input class="grow" id="key" required maxlength="200" pattern="[!-~]+"><button type="button" id="newKey">New</button></div><small>Keep the key to retry the same request; generate a new one for another message.</small></div>
+<button class="primary" type="submit">Submit notification</button>
+</form>
+<div id="createResult" class="notice spaced" role="status" hidden></div>
+</section>
+<section class="panel"><details><summary>Batch submission</summary><form id="batchForm" class="stack" style="margin-top:12px"><div class="field"><label for="batchJson">Notifications JSON (1–1000)</label><textarea id="batchJson" rows="8" required></textarea></div><div class="field"><label for="batchKey">Idempotency key</label><div class="row"><input class="grow" id="batchKey" required maxlength="200" pattern="[!-~]+"><button type="button" id="newBatchKey">New</button></div></div><button class="primary" type="submit">Submit batch</button><div id="batchResult" class="notice" role="status" hidden></div></form></details></section>
+</aside>
+<section class="panel"><div class="row spaced"><h2 class="grow" style="margin:0">Notifications</h2><label class="row" style="font-weight:400"><input id="auto" type="checkbox" checked style="width:auto"> Auto-refresh</label><button id="refresh" type="button">Refresh</button></div>
+<form id="filters"><div class="filters"><div class="field"><label for="filterStatus">Status</label><select id="filterStatus"><option value="">All</option><option>pending</option><option>processing</option><option>accepted</option><option>failed</option><option>cancelled</option><option>unknown</option></select></div><div class="field"><label for="filterChannel">Channel</label><select id="filterChannel"><option value="">All</option><option>sms</option><option>email</option><option>push</option></select></div><div class="field"><label for="from">From (UTC)</label><input id="from" type="date"></div><div class="field"><label for="to">To (UTC)</label><input id="to" type="date"></div></div><div class="row"><button type="submit">Apply filters</button><button type="button" id="reset">Clear</button><label for="pageSize">Rows</label><select id="pageSize" style="width:auto"><option>10</option><option selected>25</option><option>50</option><option>100</option></select></div></form>
+<form id="batchLookup" class="row" style="margin-top:12px"><label for="batchId">Batch ID</label><input id="batchId" class="grow" placeholder="UUID"><button type="submit">Find batch</button></form>
+<div id="listMode" class="muted" style="margin-top:10px">All notifications</div><div id="listError" class="notice error" role="status" hidden></div>
+<div class="tablewrap"><table><thead><tr><th>ID</th><th>Channel</th><th>Priority</th><th>Status</th><th>Attempts</th><th>Created (UTC)</th><th>Actions</th></tr></thead><tbody id="records"><tr><td colspan="7">Loading…</td></tr></tbody></table></div>
+<div class="row pagination"><small id="pageInfo">—</small><div class="row"><button id="prev" type="button" disabled>Previous</button><button id="next" type="button" disabled>Next</button></div></div>
+</section>
+</div>
+</main>
+<dialog id="detail"><div class="row"><h2 class="grow" style="margin:0">Notification details</h2><button id="closeDetail" type="button">Close</button></div><pre id="detailJson"></pre></dialog>
+<script>
+'use strict';
+const $ = id => document.getElementById(id);
+const uuid = () => crypto.randomUUID();
+let page = 1, lastPage = 1, batch = '', activeFilters = {}, sequence = 0, loading = false, metricsLoading = false;
+const terminalStatuses = new Set(['pending','processing','accepted','failed','cancelled','unknown']);
+function notice(id, message, type = '') {
+    const el = $(id); el.textContent = message; el.className = 'notice ' + type; el.hidden = !message;
+}
+async function api(path, method = 'GET', body, key) {
+    const headers = {Accept:'application/json'};
+    if (body !== undefined) headers['Content-Type'] = 'application/json';
+    if (key) headers['Idempotency-Key'] = key;
+    const response = await fetch('/api' + path, {method, headers, body:body === undefined ? undefined : JSON.stringify(body), cache:'no-store', signal:AbortSignal.timeout(30000)});
+    const raw = await response.text();
+    let data;
+    try { data = JSON.parse(raw); } catch { throw new Error(`HTTP ${response.status}: Invalid JSON response`); }
+    if (!response.ok) {
+        const errors = data.errors ? Object.values(data.errors).flat().join('; ') : data.message || 'Request failed';
+        throw new Error(`HTTP ${response.status}: ${errors}`);
+    }
+    return data;
+}
+function updateContent() {
+    const max = {sms:160,email:10000,push:4096}[$('channel').value];
+    $('recipient').placeholder = {sms:'+905551234567',email:'test@example.com',push:'demo-device'}[$('channel').value];
+    $('content').maxLength = max;
+    $('count').textContent = `${[...$('content').value].length} / ${max} characters`;
+}
+$('channel').addEventListener('change', updateContent); $('content').addEventListener('input', updateContent);
+$('key').value = uuid(); $('batchKey').value = uuid();
+$('newKey').onclick = () => $('key').value = uuid();
+$('newBatchKey').onclick = () => $('batchKey').value = uuid();
+$('batchJson').value = JSON.stringify({notifications:[{recipient:'test@example.com',channel:'email',content:'Batch demo',priority:'normal'},{recipient:'demo-device',channel:'push',content:'Batch demo',priority:'low'}]},null,2);
+updateContent();
+function readFilters() {
+    return Object.fromEntries([['status','filterStatus'],['channel','filterChannel'],['from','from'],['to','to'],['per_page','pageSize']].map(([k,id])=>[k,$(id).value]).filter(([,v])=>v));
+}
+activeFilters = readFilters();
+function resetList() { batch = ''; $('batchId').value = ''; page = 1; activeFilters = readFilters(); }
+function cell(row, text) { const td = document.createElement('td'); td.textContent = text ?? '—'; row.append(td); return td; }
+function action(label, fn) { const b = document.createElement('button'); b.type='button'; b.textContent=label; b.addEventListener('click',fn); return b; }
+function render(data) {
+    const rows = $('records'); rows.replaceChildren();
+    if (!data.data.length) { const tr = document.createElement('tr'); cell(tr,'No matching notifications').colSpan=7; rows.append(tr); }
+    for (const n of data.data) {
+        const tr = document.createElement('tr');
+        const id = cell(tr, n.id.slice(0,8)); id.title=n.id;
+        cell(tr,n.channel); cell(tr,n.priority);
+        const s = document.createElement('span'); s.className='status '+(terminalStatuses.has(n.status)?n.status:''); s.textContent=n.status; cell(tr,'').append(s);
+        cell(tr,n.attempts); cell(tr,n.created_at?.replace('T',' ').slice(0,19));
+        const actions=cell(tr,''); actions.className='nowrap'; actions.append(action('View',()=>showDetail(n.id)));
+        if(n.status==='pending') { actions.append(' ',action('Cancel',()=>cancel(n.id))); }
+        rows.append(tr);
+    }
+    page=data.current_page; lastPage=data.last_page;
+    $('pageInfo').textContent=`Page ${page} of ${lastPage} · ${data.total} records`;
+    $('prev').disabled=page<=1; $('next').disabled=page>=lastPage;
+    $('listMode').textContent=batch?`Batch ${batch} · filters apply to the main list only`:'All notifications';
+}
+async function refreshList() {
+    const current=++sequence; loading=true;
+    const params=new URLSearchParams(batch?{page}:{...activeFilters,page});
+    try { const data=await api((batch?'/batches/'+encodeURIComponent(batch):'/notifications')+'?'+params); if(current!==sequence)return; if(page>data.last_page){page=data.last_page;return refreshList();} render(data); notice('listError',''); }
+    catch(e){if(current===sequence)notice('listError',e.message,'error');}
+    finally{if(current===sequence)loading=false;}
+}
+async function refreshMetrics() {
+    if(metricsLoading)return; metricsLoading=true;
+    try { const h=await api('/health'); $('health').textContent=h.status==='ok'?'DB / Redis healthy':'Unhealthy'; $('health').className='status '+h.status; }
+    catch { $('health').textContent='Health check failed'; $('health').className='status unhealthy'; }
+    try { const m=await api('/metrics'); const pct=x=>x==null?'—':(x*100).toFixed(1)+'%'; $('success').textContent=pct(m.success_rate); $('failure').textContent=pct(m.failure_rate); $('latency').textContent=m.average_latency_ms==null?'—':Math.round(m.average_latency_ms)+' ms'; $('depth').textContent=Object.values(m.queue_depth).reduce((a,b)=>a+Number(b),0); $('queues').textContent=`High ${m.queue_depth.high} / Normal ${m.queue_depth.normal} / Low ${m.queue_depth.low} · Due ${m.due_pending}`; notice('metricsError',''); }
+    catch(e){notice('metricsError','Metrics: '+e.message,'error');}
+    finally{metricsLoading=false;}
+}
+async function showDetail(id){$('detailJson').textContent='Loading…';$('detail').showModal();try{$('detailJson').textContent=JSON.stringify(await api('/notifications/'+encodeURIComponent(id)),null,2);}catch(e){$('detailJson').textContent=e.message;}}
+$('closeDetail').onclick=()=>$('detail').close();
+async function cancel(id){if(!confirm('Cancel this pending notification?'))return;try{await api('/notifications/'+encodeURIComponent(id)+'/cancel','POST');await refreshList();await refreshMetrics();}catch(e){await refreshList();notice('listError',e.message,'error');}}
+$('filters').onsubmit=e=>{e.preventDefault();resetList();refreshList();}; $('reset').onclick=()=>{$('filters').reset();resetList();refreshList();};
+$('batchLookup').onsubmit=e=>{e.preventDefault();batch=$('batchId').value.trim();page=1;refreshList();};
+$('prev').onclick=()=>{if(page>1){page--;refreshList();}}; $('next').onclick=()=>{if(page<lastPage){page++;refreshList();}};
+$('refresh').onclick=()=>{refreshList();refreshMetrics();};
+async function submit(form, result, path, body, key){const button=form.querySelector('button[type=submit]');button.disabled=true;notice(result,'Submitting…');try{const r=await api(path,'POST',body,key);notice(result,`HTTP 202 · Batch ${r.batch_id} · ${r.notifications.length} notification(s).`,'success');batch=r.batch_id;$('batchId').value=batch;page=1;await refreshList();await refreshMetrics();}catch(e){notice(result,e.message,'error');}finally{button.disabled=false;}}
+$('create').onsubmit=e=>{e.preventDefault();const body={channel:$('channel').value,recipient:$('recipient').value.trim(),content:$('content').value,priority:$('priority').value};if($('scheduled').value)body.scheduled_at=new Date($('scheduled').value).toISOString();submit(e.currentTarget,'createResult','/notifications',body,$('key').value);};
+$('batchForm').onsubmit=e=>{e.preventDefault();try{const data=JSON.parse($('batchJson').value);submit(e.currentTarget,'batchResult','/notifications/batch',data,$('batchKey').value);}catch{notice('batchResult','Enter valid JSON.','error');}};
+refreshList();refreshMetrics();setInterval(()=>{if($('auto').checked&&!document.hidden){if(!loading)refreshList();refreshMetrics();}},5000);
+</script>
+</body>
+</html>
